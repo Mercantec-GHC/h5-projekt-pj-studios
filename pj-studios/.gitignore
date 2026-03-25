@@ -1,0 +1,26 @@
+# Build results
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Logs
+*.log
+
+# Publish output
+wwwroot/
+dist/
+publish/
+out/
+
+# Node (if using JS interop or tooling)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Temporary files
+*.tmp
+*.temp
