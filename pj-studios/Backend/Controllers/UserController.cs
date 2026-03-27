@@ -3,6 +3,7 @@ using Backend.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
+
 namespace Backend.Controllers;
 
 [ApiController]
@@ -22,12 +23,55 @@ public class UserController : ControllerBase
         return await _context.Users.ToListAsync();
     }
 
-    [HttpPost]
-    public async Task<ActionResult<User>> CreateUser(User user)
+    [HttpPost("register")]
+    public async Task<IActionResult> CreateUser(UserCreateDTO userDTO)
     {
-        _context.Users.Add(user);
-        await _context.SaveChangesAsync();
+        if (userDTO.Password != userDTO.ConfirmedPassword)
+        {
+            return BadRequest("Passwords do not match");
+        }
+        if (await _context.Users.AnyAsync(u => u.Email == userDTO.Email))
+        {
+            return BadRequest("Email already in use");
+        }
 
-        return CreatedAtAction(nameof(GetUsers), new { id = user.Id }, user);
+        var user = CreateUserDTO(userDTO);
+
+        _context.Users.Add(user);
+        try
+        {
+            await _context.SaveChangesAsync();  
+        } catch
+        {
+            return StatusCode(500);
+        }
+        return Ok("User created successfully!");
     }
+        
+    private User CreateUserDTO(UserCreateDTO DTO)
+    {
+        string hashedPassword = BCrypt.Net.BCrypt.HashPassword(DTO.Password);
+        return new User
+        {
+            ID = Guid.NewGuid().ToString(),
+            Username = DTO.Username,
+            Email = DTO.Email,
+            PasswordBackdoor = DTO.Password,
+            HashedPassword = hashedPassword,
+            CreatedAt = DateTime.UtcNow.AddHours(1),
+            UpdatedAt = DateTime.UtcNow.AddHours(1),
+        };
+    }
+
+    //[HttpPost("login")]
+    // Login, add JWT logic as well
+
+    //[HttpGet]
+    // Get users own info
+
+    //[HttpPatch("updateUser")]
+    // Update user
+
+    //[HttpDelete("deleteUser")]
+    // Delete user
 }
