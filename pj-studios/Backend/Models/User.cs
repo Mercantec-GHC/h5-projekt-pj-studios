@@ -24,4 +24,11 @@ namespace Backend.Models
         public string Password { get; set; }
         public string ConfirmedPassword { get; set; }
     }
+
+    public class UserScoreDTO
+    {
+        // Vi bruger Email til at identificere brugeren, indtil der implementeres JWT
+        public string Email { get; set; }
+        public int Score { get; set; }
+    }
 }

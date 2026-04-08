@@ -83,6 +83,46 @@ public class UserController : ControllerBase
         return Ok("Login successful");
     }
 
+    [HttpPost("addscore")]
+    public async Task<IActionResult> AddScore(UserScoreDTO scoreDto)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == scoreDto.Email);
+
+        if (user is null)
+        {
+            return NotFound("User not found");
+        }
+
+        // Tilføjer scoren til listen
+        user.LastScores ??= new List<int>();
+        user.LastScores.Add(scoreDto.Score);
+
+        // Tjekker om det er en ny HighScore
+        bool isNewHighScore = false;
+        if (user.HighScore == null || scoreDto.Score > user.HighScore)
+        {
+            user.HighScore = scoreDto.Score;
+            isNewHighScore = true;
+        }
+
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch
+        {
+            return StatusCode(500, "Error updating score");
+        }
+
+        return Ok(new 
+        { 
+            Message = "Score added", 
+            Score = scoreDto.Score,
+            HighScore = user.HighScore,
+            IsNewHighScore = isNewHighScore
+        });
+    }
+
     //[HttpGet]
     // Get users own info
 
