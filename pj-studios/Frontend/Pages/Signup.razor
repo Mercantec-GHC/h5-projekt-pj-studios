@@ -1,0 +1,183 @@
+@page "/signup"
+@using Frontend.Services
+@inject AuthenticationService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Opret konto</PageTitle>
+
+<div class="signup-container">
+    <div class="signup-form">
+        <h2>Opret konto</h2>
+        
+        @if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <div class="alert alert-danger">@ErrorMessage</div>
+        }
+
+        @if (!string.IsNullOrEmpty(SuccessMessage))
+        {
+            <div class="alert alert-success">@SuccessMessage</div>
+        }
+
+        <form @onsubmit="HandleSignup">
+            <div class="form-group mb-3">
+                <label for="name" class="form-label">Navn:</label>
+                <input 
+                    type="text" 
+                    id="name"
+                    class="form-control" 
+                    @bind="Name" 
+                    required 
+                    placeholder="Indtast dit navn"
+                />
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="email" class="form-label">Email:</label>
+                <input 
+                    type="email" 
+                    id="email"
+                    class="form-control" 
+                    @bind="Email" 
+                    required 
+                    placeholder="Indtast dit email"
+                />
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="password" class="form-label">Adgangskode:</label>
+                <input 
+                    type="password" 
+                    id="password"
+                    class="form-control" 
+                    @bind="Password" 
+                    required 
+                    placeholder="Vælg en adgangskode"
+                />
+                <small class="form-text text-muted">
+                    Mindst 6 tegn
+                </small>
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="confirmPassword" class="form-label">Bekræft adgangskode:</label>
+                <input 
+                    type="password" 
+                    id="confirmPassword"
+                    class="form-control" 
+                    @bind="ConfirmPassword" 
+                    required 
+                    placeholder="Bekræft din adgangskode"
+                />
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100" disabled="@IsLoading">
+                @if (IsLoading)
+                {
+                    <span>Opretter konto...</span>
+                }
+                else
+                {
+                    <span>Opret konto</span>
+                }
+            </button>
+        </form>
+
+        <p class="mt-3 text-center">
+            Har du allerede en konto? <a href="/login">Login her</a>
+        </p>
+    </div>
+</div>
+
+<style>
+    .signup-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background-color: #f5f5f5;
+    }
+
+    .signup-form {
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 400px;
+    }
+
+    .signup-form h2 {
+        margin-bottom: 1.5rem;
+        text-align: center;
+        color: #333;
+    }
+</style>
+
+@code {
+    private string Name = "";
+    private string Email = "";
+    private string Password = "";
+    private string ConfirmPassword = "";
+    private string ErrorMessage = "";
+    private string SuccessMessage = "";
+    private bool IsLoading = false;
+
+    private async Task HandleSignup()
+    {
+        ErrorMessage = "";
+        SuccessMessage = "";
+        IsLoading = true;
+
+        try
+        {
+            // Validation
+            if (string.IsNullOrWhiteSpace(Name) || string.IsNullOrWhiteSpace(Email) || 
+                string.IsNullOrWhiteSpace(Password) || string.IsNullOrWhiteSpace(ConfirmPassword))
+            {
+                ErrorMessage = "Udfyld venligst alle felter";
+                return;
+            }
+
+            if (Password.Length < 6)
+            {
+                ErrorMessage = "Adgangskoden skal være mindst 6 tegn";
+                return;
+            }
+
+            if (Password != ConfirmPassword)
+            {
+                ErrorMessage = "Adgangskoderne stemmer ikke overens";
+                return;
+            }
+
+            if (!Email.Contains("@"))
+            {
+                ErrorMessage = "Ugyldigt email-format";
+                return;
+            }
+
+            bool success = await AuthService.SignupAsync(Email, Password, ConfirmPassword, Name);
+
+            if (success)
+            {
+                SuccessMessage = "Konto oprettet успешно! Du kan nu logge ind.";
+                // Redirect to login after a short delay
+                await Task.Delay(2000);
+                Navigation.NavigateTo("/login");
+            }
+            else
+            {
+                ErrorMessage = "Oprettelse af konto mislykkedes. Prøv med en anden email.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Der opstod en fejl: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}

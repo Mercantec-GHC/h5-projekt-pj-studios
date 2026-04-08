@@ -60,11 +60,28 @@ public class UserController : ControllerBase
             HashedPassword = hashedPassword,
             CreatedAt = DateTime.UtcNow.AddHours(1),
             UpdatedAt = DateTime.UtcNow.AddHours(1),
+            LastScores = new List<int>()
         };
     }
 
-    //[HttpPost("login")]
-    // Login, add JWT logic as well
+    [HttpPost("login")]
+    public async Task<IActionResult> Login(UserLoginDTO userLoginDTO)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == userLoginDTO.Email);
+
+        if (user is null)
+        {
+            return Unauthorized("Invalid email or password");
+        }
+
+        var isPasswordValid = BCrypt.Net.BCrypt.Verify(userLoginDTO.Password, user.HashedPassword);
+        if (!isPasswordValid)
+        {
+            return Unauthorized("Invalid email or password");
+        }
+
+        return Ok("Login successful");
+    }
 
     //[HttpGet]
     // Get users own info
