@@ -1,0 +1,788 @@
+﻿@page "/leaderboard"
+@using System.Net.Http.Headers
+@using System.Text
+@using System.Text.Json
+@using Frontend.Services
+@inject HttpClient Http
+@inject AuthenticationService AuthService
+
+<PageTitle>Leaderboard</PageTitle>
+
+<div class="leaderboard-page">
+    <div class="leaderboard-panel">
+        <p class="eyebrow">Profil</p>
+        <h1>HighScore og LastScores</h1>
+
+        @if (IsLoading)
+        {
+            <p class="status">Indlæser din session...</p>
+        }
+        else if (!IsAuthenticated)
+        {
+            <div class="empty-state">
+                <p>Du er ikke logget ind endnu.</p>
+                <a class="btn btn-primary" href="/login">Gå til login</a>
+            </div>
+        }
+        else
+        {
+            <div class="score-section">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">Top 10</p>
+                        <h2>Bedste tider</h2>
+                    </div>
+
+                    @if (Top10Error is not null)
+                    {
+                        <span class="status error">@Top10Error</span>
+                    }
+                </div>
+
+                @if (Top10Entries.Count == 0)
+                {
+                    <div class="empty-state compact">
+                        <p>Ingen top 10 data er hentet endnu.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="top10-list">
+                        @foreach (var entry in Top10Entries)
+                        {
+                            <div class="top10-row">
+                                <div class="top10-rank">#@entry.Position</div>
+                                <div class="top10-player">
+                                    <span class="player-name">@entry.PlayerName</span>
+                                    <span class="player-meta">@entry.TimeLabel</span>
+                                </div>
+                                <div class="top10-time">@entry.TimeDisplay</div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="score-grid">
+                <div class="score-card highlight">
+                    <span class="label">HighScore</span>
+                    <span class="value">@HighScoreText</span>
+                </div>
+
+                <div class="score-card">
+                    <span class="label">LastScores</span>
+                    @if (LastScores.Count == 0)
+                    {
+                        <span class="muted">Ingen scores fundet i tokenen.</span>
+                    }
+                    else
+                    {
+                        <ul class="score-list">
+                            @foreach (var score in LastScores)
+                            {
+                                <li>@score</li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+
+            @if (!HasScoreData)
+            {
+                <p class="hint">
+                    Kunne ikke finde dine scoredata i API-svaret, og tokenen indeholdt heller ikke brugbare score-claims.
+                </p>
+            }
+        }
+    </div>
+</div>
+
+<style>
+    .leaderboard-page {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 2rem;
+        background:
+            radial-gradient(circle at top left, rgba(255, 189, 89, 0.2), transparent 34%),
+            radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.16), transparent 30%),
+            linear-gradient(180deg, #10151f 0%, #161d2b 100%);
+        color: #f3f6fb;
+    }
+
+    .leaderboard-panel {
+        width: min(760px, 100%);
+        padding: 2rem;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 24px;
+        background: rgba(10, 14, 22, 0.72);
+        backdrop-filter: blur(18px);
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+    }
+
+    .eyebrow {
+        margin: 0 0 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.24em;
+        font-size: 0.75rem;
+        color: #f6c76b;
+    }
+
+    h1 {
+        margin: 0 0 1rem;
+        font-size: clamp(2rem, 5vw, 3.5rem);
+        line-height: 1;
+    }
+
+    .status,
+    .hint,
+    .muted {
+        color: rgba(243, 246, 251, 0.75);
+    }
+
+    .status.error {
+        color: #ffb4b4;
+    }
+
+    .score-section {
+        margin-top: 1.5rem;
+        padding: 1.25rem;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .section-heading {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .section-heading h2 {
+        margin: 0;
+        font-size: 1.5rem;
+    }
+
+    .compact {
+        min-height: auto;
+        padding: 1rem 1.25rem;
+    }
+
+    .top10-list {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .top10-row {
+        display: grid;
+        grid-template-columns: 72px minmax(0, 1fr) auto;
+        gap: 1rem;
+        align-items: center;
+        padding: 0.95rem 1rem;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .top10-rank {
+        font-size: 1rem;
+        font-weight: 700;
+        color: #f6c76b;
+    }
+
+    .top10-player {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        min-width: 0;
+    }
+
+    .player-name {
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .player-meta {
+        font-size: 0.9rem;
+        color: rgba(243, 246, 251, 0.68);
+    }
+
+    .top10-time {
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        color: #f3f6fb;
+        white-space: nowrap;
+    }
+
+    .empty-state {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.25rem 1.5rem;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .score-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .score-card {
+        min-height: 180px;
+        padding: 1.25rem;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .score-card.highlight {
+        background: linear-gradient(160deg, rgba(246, 199, 107, 0.16), rgba(255, 255, 255, 0.05));
+    }
+
+    .label {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: rgba(243, 246, 251, 0.7);
+    }
+
+    .value {
+        font-size: clamp(2.5rem, 8vw, 4.25rem);
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .score-list {
+        margin: 0;
+        padding-left: 1.25rem;
+        display: grid;
+        gap: 0.5rem;
+    }
+
+    .hint {
+        margin-top: 1rem;
+        margin-bottom: 0;
+    }
+
+    @@media (max-width: 640px) {
+        .leaderboard-panel {
+            padding: 1.25rem;
+        }
+
+        .empty-state {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    }
+</style>
+
+@code {
+    private bool IsLoading = true;
+    private bool IsAuthenticated;
+    private bool HasScoreData;
+    private string? Top10Error;
+    private string HighScoreText = "-";
+    private List<string> LastScores = new();
+    private List<TopScoreEntry> Top10Entries = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var token = await AuthService.GetTokenAsync();
+        var storedEmail = await AuthService.GetStoredEmailAsync();
+        var storedUsername = await AuthService.GetStoredUsernameAsync();
+
+        IsAuthenticated = !string.IsNullOrWhiteSpace(token) ||
+                          !string.IsNullOrWhiteSpace(storedEmail) ||
+                          !string.IsNullOrWhiteSpace(storedUsername);
+
+        if (IsAuthenticated)
+        {
+            await LoadLeaderboardDataAsync(token, storedEmail, storedUsername);
+        }
+
+        IsLoading = false;
+    }
+
+    private async Task LoadLeaderboardDataAsync(string? token, string? storedEmail, string? storedUsername)
+    {
+        var candidatePaths = new[]
+        {
+            "/api/User",
+            "/api/User/all",
+            "/api/User/getall",
+            "/api/Leaderboard/top10"
+        };
+
+        try
+        {
+            var claims = DecodeJwtClaimsSafely(token);
+
+            foreach (var path in candidatePaths)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, $"{AuthenticationService.ApiBaseUrl}{path}");
+
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                }
+
+                var response = await Http.SendAsync(request);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    continue;
+                }
+
+                var content = await response.Content.ReadAsStringAsync();
+                var users = ParseUsers(content);
+
+                if (users.Count == 0)
+                {
+                    continue;
+                }
+
+                Top10Entries = BuildTop10(users);
+                var currentUserResolved = ApplyCurrentUserScores(users, claims, storedEmail, storedUsername);
+
+                if (!currentUserResolved && !string.IsNullOrWhiteSpace(token))
+                {
+                    await TryLoadCurrentUserFromProfileAsync(token, claims);
+                }
+
+                if (Top10Entries.Count > 0)
+                {
+                    Top10Error = null;
+                    return;
+                }
+            }
+
+            LoadScoreDataFromTokenClaims(claims);
+            Top10Error = "Kunne ikke hente top 10 tider.";
+        }
+        catch
+        {
+            LoadScoreDataFromTokenClaims(DecodeJwtClaimsSafely(token));
+            Top10Error = "Kunne ikke hente top 10 tider.";
+        }
+    }
+
+    private void LoadScoreDataFromTokenClaims(Dictionary<string, string> claims)
+    {
+        var highScore = TryGetClaimValue(claims, "HighScore", "highscore", "high_score");
+        var lastScores = TryGetClaimValue(claims, "LastScores", "lastscores", "last_scores");
+
+        if (!string.IsNullOrWhiteSpace(highScore))
+        {
+            HighScoreText = highScore;
+            HasScoreData = true;
+        }
+
+        LastScores = ParseScores(lastScores);
+        HasScoreData = HasScoreData || LastScores.Count > 0;
+    }
+
+    private bool ApplyCurrentUserScores(List<UserScoreEntry> users, Dictionary<string, string> claims, string? storedEmail, string? storedUsername)
+    {
+        var emailCandidates = GetClaimCandidates(
+            claims,
+            new[] { "email", "Email", "emailaddress", "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress" },
+            new[] { "email" });
+
+        var usernameCandidates = GetClaimCandidates(
+            claims,
+            new[]
+            {
+                "username",
+                "unique_name",
+                "name",
+                "preferred_username",
+                "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name",
+                "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+            },
+            new[] { "username", "name" });
+
+        var idCandidates = GetClaimCandidates(
+            claims,
+            new[]
+            {
+                "sub",
+                "nameid",
+                "nameidentifier",
+                "id",
+                "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
+            },
+            new[] { "id", "sub", "nameidentifier" });
+
+        if (!string.IsNullOrWhiteSpace(storedEmail))
+        {
+            emailCandidates.Add(storedEmail.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(storedUsername))
+        {
+            usernameCandidates.Add(storedUsername.Trim());
+        }
+
+        var currentUser = users.FirstOrDefault(user =>
+            emailCandidates.Contains(user.Email, StringComparer.OrdinalIgnoreCase) ||
+            usernameCandidates.Contains(user.Username, StringComparer.OrdinalIgnoreCase) ||
+            idCandidates.Contains(user.Id, StringComparer.OrdinalIgnoreCase));
+
+        if (currentUser is null)
+        {
+            return false;
+        }
+
+        HighScoreText = currentUser.HighScore.ToString();
+        LastScores = currentUser.LastScores.Select(score => score.ToString()).ToList();
+        HasScoreData = true;
+        return true;
+    }
+
+    private async Task TryLoadCurrentUserFromProfileAsync(string token, Dictionary<string, string> claims)
+    {
+        var profilePaths = new[]
+        {
+            "/api/User/me",
+            "/api/User/profile",
+            "/api/User/current"
+        };
+
+        try
+        {
+            foreach (var path in profilePaths)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, $"{AuthenticationService.ApiBaseUrl}{path}");
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                var response = await Http.SendAsync(request);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    continue;
+                }
+
+                var content = await response.Content.ReadAsStringAsync();
+                var users = ParseUsers(content);
+
+                if (users.Count == 0)
+                {
+                    continue;
+                }
+
+                var profileUser = users[0];
+                HighScoreText = profileUser.HighScore.ToString();
+                LastScores = profileUser.LastScores.Select(score => score.ToString()).ToList();
+                HasScoreData = true;
+                return;
+            }
+        }
+        catch
+        {
+            // Ignore and fall back to claim-based values.
+        }
+
+        LoadScoreDataFromTokenClaims(claims);
+    }
+
+    private static Dictionary<string, string> DecodeJwtClaims(string token)
+    {
+        var parts = token.Split('.');
+
+        if (parts.Length < 2)
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        var payloadBytes = Base64UrlDecode(parts[1]);
+        var payloadJson = Encoding.UTF8.GetString(payloadBytes);
+        using var document = JsonDocument.Parse(payloadJson);
+
+        var claims = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var property in document.RootElement.EnumerateObject())
+        {
+            claims[property.Name] = property.Value.ValueKind switch
+            {
+                JsonValueKind.String => property.Value.GetString() ?? string.Empty,
+                JsonValueKind.Number => property.Value.ToString(),
+                JsonValueKind.True => bool.TrueString,
+                JsonValueKind.False => bool.FalseString,
+                _ => property.Value.GetRawText()
+            };
+        }
+
+        return claims;
+    }
+
+    private static Dictionary<string, string> DecodeJwtClaimsSafely(string? token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        try
+        {
+            return DecodeJwtClaims(token);
+        }
+        catch
+        {
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private static byte[] Base64UrlDecode(string value)
+    {
+        var normalized = value.Replace('-', '+').Replace('_', '/');
+
+        return (normalized.Length % 4) switch
+        {
+            2 => Convert.FromBase64String(normalized + "=="),
+            3 => Convert.FromBase64String(normalized + "="),
+            _ => Convert.FromBase64String(normalized)
+        };
+    }
+
+    private static string? TryGetClaimValue(Dictionary<string, string> claims, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (claims.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+        }
+
+        return null;
+    }
+
+    private static HashSet<string> GetClaimCandidates(
+        Dictionary<string, string> claims,
+        IEnumerable<string> explicitNames,
+        IEnumerable<string> keySubstrings)
+    {
+        var candidates = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var name in explicitNames)
+        {
+            if (claims.TryGetValue(name, out var value) && !string.IsNullOrWhiteSpace(value))
+            {
+                candidates.Add(value.Trim());
+            }
+        }
+
+        foreach (var claim in claims)
+        {
+            if (string.IsNullOrWhiteSpace(claim.Value))
+            {
+                continue;
+            }
+
+            foreach (var keyPart in keySubstrings)
+            {
+                if (claim.Key.Contains(keyPart, StringComparison.OrdinalIgnoreCase))
+                {
+                    candidates.Add(claim.Value.Trim());
+                    break;
+                }
+            }
+        }
+
+        return candidates;
+    }
+
+    private static List<string> ParseScores(string? rawScores)
+    {
+        if (string.IsNullOrWhiteSpace(rawScores))
+        {
+            return new List<string>();
+        }
+
+        rawScores = rawScores.Trim();
+
+        try
+        {
+            using var document = JsonDocument.Parse(rawScores);
+
+            if (document.RootElement.ValueKind == JsonValueKind.Array)
+            {
+                return document.RootElement
+                    .EnumerateArray()
+                    .Select(element => element.ToString())
+                    .Where(value => !string.IsNullOrWhiteSpace(value))
+                    .ToList()!;
+            }
+        }
+        catch (JsonException)
+        {
+            // Fall back to a simple string split.
+        }
+
+        return rawScores
+            .Split(new[] { ',', ';', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+    }
+
+    private static List<UserScoreEntry> ParseUsers(string responseContent)
+    {
+        if (string.IsNullOrWhiteSpace(responseContent))
+        {
+            return new List<UserScoreEntry>();
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(responseContent);
+
+            var userObjects = GetUserObjects(document.RootElement);
+
+            if (userObjects.Count == 0)
+            {
+                return new List<UserScoreEntry>();
+            }
+
+            return userObjects
+                .Select(ParseUser)
+                .ToList();
+        }
+        catch (JsonException)
+        {
+            // Fall through to an empty result.
+        }
+
+        return new List<UserScoreEntry>();
+    }
+
+    private static List<TopScoreEntry> BuildTop10(List<UserScoreEntry> users)
+    {
+        return users
+            .OrderByDescending(user => user.HighScore)
+            .ThenBy(user => user.Username, StringComparer.OrdinalIgnoreCase)
+            .Take(10)
+            .Select((user, index) => new TopScoreEntry(index + 1, user.Username, user.HighScore.ToString(), "HighScore", user.HighScore))
+            .ToList();
+    }
+
+    private static List<JsonElement> GetUserObjects(JsonElement rootElement)
+    {
+        if (rootElement.ValueKind == JsonValueKind.Array)
+        {
+            return rootElement.EnumerateArray().ToList();
+        }
+
+        if (rootElement.ValueKind == JsonValueKind.Object)
+        {
+            if (rootElement.TryGetProperty("items", out var itemsElement) && itemsElement.ValueKind == JsonValueKind.Array)
+            {
+                return itemsElement.EnumerateArray().ToList();
+            }
+
+            if (rootElement.TryGetProperty("data", out var dataElement) && dataElement.ValueKind == JsonValueKind.Array)
+            {
+                return dataElement.EnumerateArray().ToList();
+            }
+        }
+
+        return new List<JsonElement>();
+    }
+
+    private static UserScoreEntry ParseUser(JsonElement item)
+    {
+        var id = TryGetJsonString(item, "id") ?? string.Empty;
+        var username = TryGetJsonString(item, "username", "name", "playerName", "userName") ?? "Ukendt spiller";
+        var email = TryGetJsonString(item, "email") ?? string.Empty;
+        var highScore = TryGetJsonNumberValue(item, "highScore", "highscore", "score", "time") ?? 0;
+        var lastScores = TryGetJsonIntArray(item, "lastScores", "lastscores");
+
+        return new UserScoreEntry(id, username, email, highScore, lastScores);
+    }
+
+    private static string? TryGetJsonString(JsonElement item, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (item.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String)
+            {
+                var text = value.GetString();
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    return text;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static string? TryGetJsonNumber(JsonElement item, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (item.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number)
+            {
+                return value.ToString();
+            }
+        }
+
+        return null;
+    }
+
+    private static int? TryGetJsonNumberValue(JsonElement item, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (item.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number)
+            {
+                if (value.TryGetInt32(out var intValue))
+                {
+                    return intValue;
+                }
+
+                if (value.TryGetInt64(out var longValue) && longValue <= int.MaxValue && longValue >= int.MinValue)
+                {
+                    return (int)longValue;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static List<int> TryGetJsonIntArray(JsonElement item, params string[] names)
+    {
+        foreach (var name in names)
+        {
+            if (item.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Array)
+            {
+                var result = new List<int>();
+
+                foreach (var element in value.EnumerateArray())
+                {
+                    if (element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out var intValue))
+                    {
+                        result.Add(intValue);
+                    }
+                }
+
+                return result;
+            }
+        }
+
+        return new List<int>();
+    }
+
+    private sealed record TopScoreEntry(int Position, string PlayerName, string TimeDisplay, string TimeLabel, int? NumericTime);
+    private sealed record UserScoreEntry(string Id, string Username, string Email, int HighScore, List<int> LastScores);
+}
