@@ -1,0 +1,30 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Backend/Dockerfile
+    ports:
+      - "4060:5000"
+    env_file:
+      - .env
+    environment:
+      - ASPNETCORE_URLS=http://+:5000
+      - ASPNETCORE_ENVIRONMENT=Production
+    networks:
+      - app-network
+
+  H5:
+    image: rabbitmq:management
+    ports:
+      - "5672:5672"    # RabbitMQ port med amqp-protokol
+      - "15672:15672"  # RabbitMQ management UI
+      - "1883:1883"    # MQTT port
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    networks:
+      - app-network    # Tilføjet for at backend kan snakke med RabbitMQ
+
+networks:
+  app-network:
+    driver: bridge

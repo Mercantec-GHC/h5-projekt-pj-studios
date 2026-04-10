@@ -1,0 +1,124 @@
+@page "/login"
+@using Frontend.Services
+@inject AuthenticationService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Login</PageTitle>
+
+<div class="login-container">
+    <div class="login-form">
+        <h2>Login</h2>
+        
+        @if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <div class="alert alert-danger">@ErrorMessage</div>
+        }
+
+        <form @onsubmit="HandleLogin">
+            <div class="form-group mb-3">
+                <label for="email" class="form-label">Email:</label>
+                <input 
+                    type="email" 
+                    id="email"
+                    class="form-control" 
+                    @bind="Email" 
+                    required 
+                    placeholder="Indtast dit email"
+                />
+            </div>
+
+            <div class="form-group mb-3">
+                <label for="password" class="form-label">Adgangskode:</label>
+                <input 
+                    type="password" 
+                    id="password"
+                    class="form-control" 
+                    @bind="Password" 
+                    required 
+                    placeholder="Indtast din adgangskode"
+                />
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100" disabled="@IsLoading">
+                @if (IsLoading)
+                {
+                    <span>Logger ind...</span>
+                }
+                else
+                {
+                    <span>Login</span>
+                }
+            </button>
+        </form>
+
+        <p class="mt-3 text-center">
+            Har du ikke en konto? <a href="/signup">Opret konto her</a>
+        </p>
+    </div>
+</div>
+
+<style>
+    .login-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background-color: #f5f5f5;
+    }
+
+    .login-form {
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        width: 100%;
+        max-width: 400px;
+    }
+
+    .login-form h2 {
+        margin-bottom: 1.5rem;
+        text-align: center;
+        color: #333;
+    }
+</style>
+
+@code {
+    private string Email = "";
+    private string Password = "";
+    private string ErrorMessage = "";
+    private bool IsLoading = false;
+
+    private async Task HandleLogin()
+    {
+        ErrorMessage = "";
+        IsLoading = true;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
+            {
+                ErrorMessage = "Udfyld venligst alle felter";
+                return;
+            }
+
+            bool success = await AuthService.LoginAsync(Email, Password);
+
+            if (success)
+            {
+                Navigation.NavigateTo("/leaderboard");
+            }
+            else
+            {
+                ErrorMessage = "Login mislykkedes. Kontroller email og adgangskode.";
+            }
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Der opstod en fejl: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+}
