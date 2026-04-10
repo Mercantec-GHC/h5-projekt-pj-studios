@@ -24,3 +24,6 @@ yarn-error.log
 # Temporary files
 *.tmp
 *.temp
+
+appsettings.json
+appsettings.Development.json
