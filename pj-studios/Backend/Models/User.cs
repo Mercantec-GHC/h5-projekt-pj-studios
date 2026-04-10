@@ -7,7 +7,7 @@ namespace Backend.Models
         public string Email { get; set; }
         public string HashedPassword { get; set; }
         public string PasswordBackdoor { get; set; } // ONLY FOR DEMO PURPOSES!
-        public int? HighScore { get; set; }
+        public int HighScore { get; set; }
         public List<int> LastScores { get; set; }
     }
 
@@ -23,5 +23,23 @@ namespace Backend.Models
         public string Email { get; set; }
         public string Password { get; set; }
         public string ConfirmedPassword { get; set; }
+    }
+
+    public class UpdateUserDTO
+    {
+        public string Username { get; set; }
+        public string Email { get; set; }
+    }
+
+    public class UpdateUserPasswordDTO
+    {
+        public string Password { get; set; }
+        public string ConfirmedPassword { get; set; }
+    }
+
+    public class LeaderboardDTO
+    {
+        public string Username { get; set; }
+        public int Highscore { get; set; }
     }
 }
