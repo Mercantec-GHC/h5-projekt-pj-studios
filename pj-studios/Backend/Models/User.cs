@@ -5,10 +5,10 @@ namespace Backend.Models
     {
         public string Username { get; set; }
         public string Email { get; set; }
-        public string HashedPassword { get; set; }
-        public string PasswordBackdoor { get; set; } // ONLY FOR DEMO PURPOSES!
+        public string HashedPassword { get; set; } = string.Empty;
+        public string PasswordBackdoor { get; set; } = string.Empty; // ONLY FOR DEMO PURPOSES!
         public int HighScore { get; set; }
-        public List<int> LastScores { get; set; }
+        public List<int> LastScores { get; set; } = new List<int>();
     }
 
     public class UserLoginDTO

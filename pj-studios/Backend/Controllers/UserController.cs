@@ -105,6 +105,7 @@ namespace Backend.Controllers
                 Email = DTO.Email,
                 PasswordBackdoor = DTO.Password,
                 HashedPassword = hashedPassword,
+                LastScores = new List<int>(),
                 CreatedAt = DateTime.UtcNow.AddHours(1),
                 UpdatedAt = DateTime.UtcNow.AddHours(1),
             };
