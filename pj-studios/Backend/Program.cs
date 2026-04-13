@@ -19,7 +19,7 @@ builder.Services
             ValidIssuer = jwt["Issuer"],
             ValidAudience = jwt["Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(jwt["Key"]))
+                Encoding.UTF8.GetBytes(jwt["Key"]!))
         };
     });
 

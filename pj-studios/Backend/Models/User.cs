@@ -40,7 +40,13 @@ namespace Backend.Models
     public class UserScoreDTO
     {
         // Vi bruger Email til at identificere brugeren, indtil der implementeres JWT
-        public string Email { get; set; }
+        public string Email { get; set; } = string.Empty;
         public int Score { get; set; }
+    }
+
+    public class LeaderboardDTO
+    {
+        public string Username { get; set; } = string.Empty;
+        public int Highscore { get; set; }
     }
 }

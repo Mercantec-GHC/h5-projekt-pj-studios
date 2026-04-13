@@ -132,30 +132,30 @@ namespace Backend.Controllers
         });
     }
     public string GenerateToken(User user)
+    {
+        var key = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
+
+        var credits = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var claims = new[]
         {
-            var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+            new Claim(JwtRegisteredClaimNames.Sub, user.ID.ToString()),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            new Claim("username", user.Username)
+        };
 
-            var credits = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var token = new JwtSecurityToken(
+            issuer: _configuration["Jwt:Issuer"],
+            audience: _configuration["Jwt:Audience"],
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(
+                int.Parse(_configuration["Jwt:ExpiresInMinutes"]!)),
+            signingCredentials: credits
+        );
 
-            var claims = new[]
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, user.ID.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim("username", user.Username)
-            };
-
-            var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(
-                    int.Parse(_configuration["Jwt:ExpiresInMinutes"])),
-                signingCredentials: credits
-            );
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
 
     [HttpPost("addscore")]
     public async Task<IActionResult> AddScore(UserScoreDTO scoreDto)
@@ -173,7 +173,7 @@ namespace Backend.Controllers
 
         // Tjekker om det er en ny HighScore
         bool isNewHighScore = false;
-        if (user.HighScore == null || scoreDto.Score > user.HighScore)
+        if (scoreDto.Score > user.HighScore)
         {
             user.HighScore = scoreDto.Score;
             isNewHighScore = true;
