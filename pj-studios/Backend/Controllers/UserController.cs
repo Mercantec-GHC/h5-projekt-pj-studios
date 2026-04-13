@@ -31,23 +31,37 @@ namespace Backend.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers()
         {
-            return await _context.Users.ToListAsync();
+            try
+            {
+                return await _context.Users.ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Database error", error = ex.InnerException?.Message ?? ex.Message });
+            }
         }
 
         [HttpGet("leaderboard")]
         public async Task<IActionResult> GetLeaderboard()
         {
-            var leaderboard = await _context.Users
-                .OrderByDescending(u => u.HighScore)
-                .Take(10)
-                .Select(u => new LeaderboardDTO
-                {
-                    Username = u.Username,
-                    Highscore = u.HighScore
-                })
-                .ToListAsync();
+            try 
+            {
+                var leaderboard = await _context.Users
+                    .OrderByDescending(u => u.HighScore)
+                    .Take(10)
+                    .Select(u => new LeaderboardDTO
+                    {
+                        Username = u.Username,
+                        Highscore = u.HighScore
+                    })
+                    .ToListAsync();
 
-            return Ok(leaderboard);
+                return Ok(leaderboard);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Database error", error = ex.InnerException?.Message ?? ex.Message });
+            }
         }
 
 
