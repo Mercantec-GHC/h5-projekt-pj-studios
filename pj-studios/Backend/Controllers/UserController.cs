@@ -52,9 +52,9 @@ namespace Backend.Controllers
                     .Select(u => new LeaderboardDTO
                     {
                         Username = u.Username,
-                        Highscore = u.HighScore
-                    })
-                    .ToListAsync();
+                            Highscore = u.HighScore ?? 0
+                        })
+                        .ToListAsync();
 
                 return Ok(leaderboard);
             }
@@ -189,7 +189,8 @@ namespace Backend.Controllers
 
         // Tjekker om det er en ny HighScore
         bool isNewHighScore = false;
-        if (scoreDto.Score > user.HighScore)
+        int currentHighScore = user.HighScore ?? 0;
+        if (scoreDto.Score > currentHighScore)
         {
             user.HighScore = scoreDto.Score;
             isNewHighScore = true;

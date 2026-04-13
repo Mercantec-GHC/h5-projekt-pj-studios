@@ -7,7 +7,7 @@ namespace Backend.Models
         public string Email { get; set; }
         public string HashedPassword { get; set; } = string.Empty;
         public string PasswordBackdoor { get; set; } = string.Empty; // ONLY FOR DEMO PURPOSES!
-        public int HighScore { get; set; }
+        public int? HighScore { get; set; } = 0;
         public List<int> LastScores { get; set; } = new List<int>();
     }
 
