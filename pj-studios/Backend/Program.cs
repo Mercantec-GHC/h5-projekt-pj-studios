@@ -4,6 +4,8 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ---------------- JWT CONFIG ----------------
 var jwt = builder.Configuration.GetSection("Jwt");
 
 builder.Services
@@ -16,6 +18,7 @@ builder.Services
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
+
             ValidIssuer = jwt["Issuer"],
             ValidAudience = jwt["Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
@@ -25,19 +28,21 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-const string FrontendCorsPolicy = "FrontendCorsPolicy";
-
-// Add services to the container.
+// ---------------- CONTROLLERS ----------------
 builder.Services.AddControllers();
 
-// Configure Entity Framework with NeonDB (PostgreSQL)
+// ---------------- DATABASE ----------------
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
 
-// Configure Swagger/OpenAPI
+// ---------------- SWAGGER ----------------
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// ---------------- CORS ----------------
+const string FrontendCorsPolicy = "FrontendCorsPolicy";
 
 builder.Services.AddCors(options =>
 {
@@ -51,7 +56,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// ---------------- PIPELINE ----------------
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -60,9 +65,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseAuthentication();
 app.UseCors(FrontendCorsPolicy);
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.JSInterop;
 
 namespace Frontend.Services
@@ -8,15 +9,20 @@ namespace Frontend.Services
     {
         private readonly HttpClient _httpClient;
         private readonly IJSRuntime _jsRuntime;
+        private readonly JwtAuthenticationStateProvider _authStateProvider;
         public const string ApiBaseUrl = "https://h5-projekt-pj-studios-1.onrender.com";
         private const string TokenStorageKey = "authToken";
         private const string UserEmailStorageKey = "authEmail";
         private const string UsernameStorageKey = "authUsername";
 
-        public AuthenticationService(HttpClient httpClient, IJSRuntime jsRuntime)
+        public AuthenticationService(
+            HttpClient httpClient,
+            IJSRuntime jsRuntime,
+            AuthenticationStateProvider authenticationStateProvider)
         {
             _httpClient = httpClient;
             _jsRuntime = jsRuntime;
+            _authStateProvider = (JwtAuthenticationStateProvider)authenticationStateProvider;
         }
 
         public async Task<bool> LoginAsync(string email, string password)
@@ -44,7 +50,11 @@ namespace Frontend.Services
 
                     if (!string.IsNullOrWhiteSpace(token))
                     {
-                        await _jsRuntime.InvokeVoidAsync("authStorage.set", TokenStorageKey, token);
+                        await _authStateProvider.SetTokenAsync(token);
+                    }
+                    else
+                    {
+                        await _authStateProvider.ClearTokenAsync();
                     }
 
                     return true;
@@ -85,9 +95,9 @@ namespace Frontend.Services
 
         public async Task LogoutAsync()
         {
-            await _jsRuntime.InvokeVoidAsync("authStorage.remove", TokenStorageKey);
             await _jsRuntime.InvokeVoidAsync("authStorage.remove", UserEmailStorageKey);
             await _jsRuntime.InvokeVoidAsync("authStorage.remove", UsernameStorageKey);
+            await _authStateProvider.ClearTokenAsync();
 
             try
             {
@@ -102,6 +112,12 @@ namespace Frontend.Services
         public async Task<string?> GetTokenAsync()
         {
             return await _jsRuntime.InvokeAsync<string?>("authStorage.get", TokenStorageKey);
+        }
+
+        public async Task<bool> IsLoggedInAsync()
+        {
+            var token = await GetTokenAsync();
+            return JwtAuthenticationStateProvider.IsTokenValid(token);
         }
 
         public async Task<string?> GetStoredEmailAsync()
