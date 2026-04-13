@@ -31,23 +31,37 @@ namespace Backend.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers()
         {
-            return await _context.Users.ToListAsync();
+            try
+            {
+                return await _context.Users.ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Database error", error = ex.InnerException?.Message ?? ex.Message });
+            }
         }
 
         [HttpGet("leaderboard")]
         public async Task<IActionResult> GetLeaderboard()
         {
-            var leaderboard = await _context.Users
-                .OrderByDescending(u => u.HighScore)
-                .Take(10)
-                .Select(u => new LeaderboardDTO
-                {
-                    Username = u.Username,
-                    Highscore = u.HighScore
-                })
-                .ToListAsync();
+            try 
+            {
+                var leaderboard = await _context.Users
+                    .OrderByDescending(u => u.HighScore)
+                    .Take(10)
+                    .Select(u => new LeaderboardDTO
+                    {
+                        Username = u.Username,
+                            Highscore = u.HighScore ?? 0
+                        })
+                        .ToListAsync();
 
-            return Ok(leaderboard);
+                return Ok(leaderboard);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Database error", error = ex.InnerException?.Message ?? ex.Message });
+            }
         }
 
 
@@ -73,9 +87,10 @@ namespace Backend.Controllers
             try
             {
                 await _context.SaveChangesAsync();  
-            } catch
+            } 
+            catch (Exception ex)
             {
-                return StatusCode(500);
+                return StatusCode(500, new { message = "Database error", error = ex.InnerException?.Message ?? ex.Message });
             }
             return Ok("User created successfully!");
         }
@@ -104,6 +119,7 @@ namespace Backend.Controllers
                 Email = DTO.Email,
                 PasswordBackdoor = DTO.Password,
                 HashedPassword = hashedPassword,
+                LastScores = new List<int>(),
                 CreatedAt = DateTime.UtcNow.AddHours(1),
                 UpdatedAt = DateTime.UtcNow.AddHours(1),
             };
@@ -132,30 +148,30 @@ namespace Backend.Controllers
         });
     }
     public string GenerateToken(User user)
+    {
+        var key = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
+
+        var credits = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+        var claims = new[]
         {
-            var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+            new Claim(JwtRegisteredClaimNames.Sub, user.ID.ToString()),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            new Claim("username", user.Username)
+        };
 
-            var credits = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var token = new JwtSecurityToken(
+            issuer: _configuration["Jwt:Issuer"],
+            audience: _configuration["Jwt:Audience"],
+            claims: claims,
+            expires: DateTime.UtcNow.AddMinutes(
+                int.Parse(_configuration["Jwt:ExpiresInMinutes"]!)),
+            signingCredentials: credits
+        );
 
-            var claims = new[]
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, user.ID.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim("username", user.Username)
-            };
-
-            var token = new JwtSecurityToken(
-                issuer: _configuration["Jwt:Issuer"],
-                audience: _configuration["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(
-                    int.Parse(_configuration["Jwt:ExpiresInMinutes"])),
-                signingCredentials: credits
-            );
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
 
     [HttpPost("addscore")]
     public async Task<IActionResult> AddScore(UserScoreDTO scoreDto)
@@ -173,7 +189,8 @@ namespace Backend.Controllers
 
         // Tjekker om det er en ny HighScore
         bool isNewHighScore = false;
-        if (user.HighScore == null || scoreDto.Score > user.HighScore)
+        int currentHighScore = user.HighScore ?? 0;
+        if (scoreDto.Score > currentHighScore)
         {
             user.HighScore = scoreDto.Score;
             isNewHighScore = true;

@@ -8,7 +8,7 @@ namespace Frontend.Services
     {
         private readonly HttpClient _httpClient;
         private readonly IJSRuntime _jsRuntime;
-        public const string ApiBaseUrl = "https://localhost:7087";
+        public const string ApiBaseUrl = "https://h5-projekt-pj-studios-1.onrender.com";
         private const string TokenStorageKey = "authToken";
         private const string UserEmailStorageKey = "authEmail";
         private const string UsernameStorageKey = "authUsername";
