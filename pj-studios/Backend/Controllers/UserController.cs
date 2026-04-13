@@ -73,9 +73,10 @@ namespace Backend.Controllers
             try
             {
                 await _context.SaveChangesAsync();  
-            } catch
+            } 
+            catch (Exception ex)
             {
-                return StatusCode(500);
+                return StatusCode(500, new { message = "Database error", error = ex.InnerException?.Message ?? ex.Message });
             }
             return Ok("User created successfully!");
         }
