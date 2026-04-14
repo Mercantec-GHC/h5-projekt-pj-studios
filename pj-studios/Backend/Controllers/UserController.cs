@@ -34,23 +34,6 @@ namespace Backend.Controllers
             return await _context.Users.ToListAsync();
         }
 
-        [HttpGet("leaderboard")]
-        public async Task<IActionResult> GetLeaderboard()
-        {
-            var leaderboard = await _context.Users
-                .OrderByDescending(u => u.HighScore)
-                .Take(10)
-                .Select(u => new LeaderboardDTO
-                {
-                    Username = u.Username,
-                    Highscore = u.HighScore
-                })
-                .ToListAsync();
-
-            return Ok(leaderboard);
-        }
-
-
         [HttpPost("register")]
         public async Task<IActionResult> CreateUser(UserCreateDTO userDTO)
         {
@@ -109,29 +92,30 @@ namespace Backend.Controllers
             };
         }
 
-    [HttpPost("login")]
-    public async Task<IActionResult> Login(UserLoginDTO userDTO)
-    {
-        var user = await _context.Users.SingleOrDefaultAsync(u => u.Email == userDTO.Email);
-        if(user == null || !BCrypt.Net.BCrypt.Verify(userDTO.Password, user.HashedPassword))
+        [HttpPost("login")]
+        public async Task<IActionResult> Login(UserLoginDTO userDTO)
         {
-            return Unauthorized("Invalid credentials");
+            var user = await _context.Users.SingleOrDefaultAsync(u => u.Email == userDTO.Email);
+            if(user == null || !BCrypt.Net.BCrypt.Verify(userDTO.Password, user.HashedPassword))
+            {
+                return Unauthorized("Invalid credentials");
+            }
+
+            var token = GenerateToken(user);
+
+            return Ok(new
+            {
+                token,
+                user = new
+                {
+                    user.ID,
+                    user.Email,
+                    user.Username
+                }
+            });
         }
 
-        var token = GenerateToken(user);
-
-        return Ok(new
-        {
-            token,
-            user = new
-            {
-                user.ID,
-                user.Email,
-                user.Username
-            }
-        });
-    }
-    public string GenerateToken(User user)
+        private string GenerateToken(User user)
         {
             var key = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
@@ -157,48 +141,45 @@ namespace Backend.Controllers
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-    [HttpPost("addscore")]
-    public async Task<IActionResult> AddScore(UserScoreDTO scoreDto)
-    {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == scoreDto.Email);
-
-        if (user is null)
+        [HttpPost("addscore")]
+        public async Task<IActionResult> AddScore(UserScoreDTO scoreDto)
         {
-            return NotFound("User not found");
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == scoreDto.Email);
+
+            if (user is null)
+            {
+                return NotFound("User not found");
+            }
+
+            // Tilføjer scoren til listen
+            user.LastScores ??= new List<int>();
+            user.LastScores.Add(scoreDto.Score);
+
+            // Tjekker om det er en ny HighScore
+            bool isNewHighScore = false;
+            if (user.HighScore == null || scoreDto.Score > user.HighScore)
+            {
+                user.HighScore = scoreDto.Score;
+                isNewHighScore = true;
+            }
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch
+            {
+                return StatusCode(500, "Error updating score");
+            }
+
+            return Ok(new 
+            { 
+                Message = "Score added", 
+                Score = scoreDto.Score,
+                HighScore = user.HighScore,
+                IsNewHighScore = isNewHighScore
+            });
         }
-
-        // Tilføjer scoren til listen
-        user.LastScores ??= new List<int>();
-        user.LastScores.Add(scoreDto.Score);
-
-        // Tjekker om det er en ny HighScore
-        bool isNewHighScore = false;
-        if (user.HighScore == null || scoreDto.Score > user.HighScore)
-        {
-            user.HighScore = scoreDto.Score;
-            isNewHighScore = true;
-        }
-
-        try
-        {
-            await _context.SaveChangesAsync();
-        }
-        catch
-        {
-            return StatusCode(500, "Error updating score");
-        }
-
-        return Ok(new 
-        { 
-            Message = "Score added", 
-            Score = scoreDto.Score,
-            HighScore = user.HighScore,
-            IsNewHighScore = isNewHighScore
-        });
-    }
-
-        
-        
 
         [HttpGet("userInfo")]
         public async Task<IActionResult> GetUsersOwnInfo(string userId)
