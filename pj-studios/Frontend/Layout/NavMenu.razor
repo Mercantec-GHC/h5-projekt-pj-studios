@@ -1,8 +1,4 @@
-﻿@using Frontend.Services
-@inject AuthenticationService AuthService
-@inject NavigationManager Navigation
-
-<div class="top-row ps-3 navbar navbar-dark">
+﻿<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">Frontend</a>
         <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
@@ -28,38 +24,18 @@
                 <span class="bi bi-trophy-fill" aria-hidden="true"></span> Leaderboard
             </NavLink>
         </div>
-        <AuthorizeView>
-            <Authorized>
-                <div class="nav-item px-3">
-                    <button class="nav-link logout-button" @onclick="HandleLogout">
-                        <span class="bi bi-box-arrow-right" aria-hidden="true"></span> Log ud
-                    </button>
-                </div>
-            </Authorized>
-            <NotAuthorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="login">
-                        <span class="bi bi-box-arrow-in-right" aria-hidden="true"></span> Login
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="signup">
-                        <span class="bi bi-person-plus-fill" aria-hidden="true"></span> Opret konto
-                    </NavLink>
-                </div>
-            </NotAuthorized>
-        </AuthorizeView>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="login">
+                <span class="bi bi-box-arrow-in-right" aria-hidden="true"></span> Login
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="signup">
+                <span class="bi bi-person-plus-fill" aria-hidden="true"></span> Opret konto
+            </NavLink>
+        </div>
     </nav>
 </div>
-
-<style>
-    .logout-button {
-        border: none;
-        width: 100%;
-        background: none;
-        text-align: left;
-    }
-</style>
 
 @code {
     private bool collapseNavMenu = true;
@@ -69,11 +45,5 @@
     private void ToggleNavMenu()
     {
         collapseNavMenu = !collapseNavMenu;
-    }
-
-    private async Task HandleLogout()
-    {
-        await AuthService.LogoutAsync();
-        Navigation.NavigateTo("/login", true);
     }
 }

@@ -1,5 +1,4 @@
 ﻿@page "/leaderboard"
-@attribute [Authorize]
 @using System.Net.Http.Headers
 @using System.Text
 @using System.Text.Json
@@ -300,22 +299,18 @@
     protected override async Task OnInitializedAsync()
     {
         var token = await AuthService.GetTokenAsync();
-        var storedEmail = await AuthService.GetStoredEmailAsync();
-        var storedUsername = await AuthService.GetStoredUsernameAsync();
 
-        IsAuthenticated = !string.IsNullOrWhiteSpace(token) ||
-                          !string.IsNullOrWhiteSpace(storedEmail) ||
-                          !string.IsNullOrWhiteSpace(storedUsername);
+        IsAuthenticated = !string.IsNullOrWhiteSpace(token);
 
-        if (IsAuthenticated)
+        if (IsAuthenticated && token is not null)
         {
-            await LoadLeaderboardDataAsync(token, storedEmail, storedUsername);
+            await LoadLeaderboardDataAsync(token);
         }
 
         IsLoading = false;
     }
 
-    private async Task LoadLeaderboardDataAsync(string? token, string? storedEmail, string? storedUsername)
+    private async Task LoadLeaderboardDataAsync(string token)
     {
         var candidatePaths = new[]
         {
@@ -327,16 +322,12 @@
 
         try
         {
-            var claims = DecodeJwtClaimsSafely(token);
+            var claims = DecodeJwtClaims(token);
 
             foreach (var path in candidatePaths)
             {
                 using var request = new HttpRequestMessage(HttpMethod.Get, $"{AuthenticationService.ApiBaseUrl}{path}");
-
-                if (!string.IsNullOrWhiteSpace(token))
-                {
-                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-                }
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
                 var response = await Http.SendAsync(request);
 
@@ -354,9 +345,9 @@
                 }
 
                 Top10Entries = BuildTop10(users);
-                var currentUserResolved = ApplyCurrentUserScores(users, claims, storedEmail, storedUsername);
+                var currentUserResolved = ApplyCurrentUserScores(users, claims);
 
-                if (!currentUserResolved && !string.IsNullOrWhiteSpace(token))
+                if (!currentUserResolved)
                 {
                     await TryLoadCurrentUserFromProfileAsync(token, claims);
                 }
@@ -373,7 +364,7 @@
         }
         catch
         {
-            LoadScoreDataFromTokenClaims(DecodeJwtClaimsSafely(token));
+            LoadScoreDataFromTokenClaims(DecodeJwtClaims(token));
             Top10Error = "Kunne ikke hente top 10 tider.";
         }
     }
@@ -393,7 +384,7 @@
         HasScoreData = HasScoreData || LastScores.Count > 0;
     }
 
-    private bool ApplyCurrentUserScores(List<UserScoreEntry> users, Dictionary<string, string> claims, string? storedEmail, string? storedUsername)
+    private bool ApplyCurrentUserScores(List<UserScoreEntry> users, Dictionary<string, string> claims)
     {
         var emailCandidates = GetClaimCandidates(
             claims,
@@ -424,16 +415,6 @@
                 "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
             },
             new[] { "id", "sub", "nameidentifier" });
-
-        if (!string.IsNullOrWhiteSpace(storedEmail))
-        {
-            emailCandidates.Add(storedEmail.Trim());
-        }
-
-        if (!string.IsNullOrWhiteSpace(storedUsername))
-        {
-            usernameCandidates.Add(storedUsername.Trim());
-        }
 
         var currentUser = users.FirstOrDefault(user =>
             emailCandidates.Contains(user.Email, StringComparer.OrdinalIgnoreCase) ||
@@ -525,23 +506,6 @@
         }
 
         return claims;
-    }
-
-    private static Dictionary<string, string> DecodeJwtClaimsSafely(string? token)
-    {
-        if (string.IsNullOrWhiteSpace(token))
-        {
-            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        }
-
-        try
-        {
-            return DecodeJwtClaims(token);
-        }
-        catch
-        {
-            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        }
     }
 
     private static byte[] Base64UrlDecode(string value)
