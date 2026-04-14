@@ -13,27 +13,43 @@ namespace Backend.Models
 
     public class UserLoginDTO
     {
+        [Required]
         public string Email { get; set; }
+
+        [Required]
         public string Password { get; set; }
     }
 
     public class UserCreateDTO
     {
+        [Required]
         public string Username { get; set; }
+
+        [Required]
+        [EmailAddress]
         public string Email { get; set; }
+
+        [Required]
         public string Password { get; set; }
+
+        [Required]
         public string ConfirmedPassword { get; set; }
     }
 
     public class UpdateUserDTO
     {
-        public string Username { get; set; }
-        public string Email { get; set; }
+        public string? Username { get; set; }
+
+        [EmailAddress]
+        public string? Email { get; set; }
     }
 
     public class UpdateUserPasswordDTO
     {
+        [Required]
         public string Password { get; set; }
+
+        [Required]
         public string ConfirmedPassword { get; set; }
     }
   

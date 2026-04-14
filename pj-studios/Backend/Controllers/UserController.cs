@@ -147,11 +147,12 @@ namespace Backend.Controllers
                 }
             });
         }
+    
 
         private string GenerateToken(User user)
         {
             var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+                Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
 
             var credits = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
@@ -161,38 +162,18 @@ namespace Backend.Controllers
                 new Claim(JwtRegisteredClaimNames.Email, user.Email),
                 new Claim("username", user.Username)
             };
-                user.ID,
-                user.Email,
-                user.Username
-            }
-        });
-    }
 
-    private string GenerateToken(User user)
-    {
-        var key = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
+            var token = new JwtSecurityToken(
+                issuer: _configuration["Jwt:Issuer"],
+                audience: _configuration["Jwt:Audience"],
+                claims: claims,
+                expires: DateTime.UtcNow.AddMinutes(
+                    int.Parse(_configuration["Jwt:ExpiresInMinutes"]!)),
+                signingCredentials: credits
+            );
 
-        var credits = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-        var claims = new[]
-        {
-            new Claim(JwtRegisteredClaimNames.Sub, user.ID.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim("username", user.Username)
-        };
-
-        var token = new JwtSecurityToken(
-            issuer: _configuration["Jwt:Issuer"],
-            audience: _configuration["Jwt:Audience"],
-            claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(
-                int.Parse(_configuration["Jwt:ExpiresInMinutes"]!)),
-            signingCredentials: credits
-        );
-
-        return new JwtSecurityTokenHandler().WriteToken(token);
-    }
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
 
         [HttpPost("addscore")]
         public async Task<IActionResult> AddScore(UserScoreDTO scoreDto)
@@ -233,7 +214,8 @@ namespace Backend.Controllers
                 IsNewHighScore = isNewHighScore
             });
         }
-
+        
+        [Authorize]
         [HttpGet("userInfo")]
         public async Task<IActionResult> GetUsersOwnInfo(string userId)
         {
@@ -247,6 +229,7 @@ namespace Backend.Controllers
             return Ok(user);
         }
 
+        [Authorize]
         [HttpPut("updateUser")]
         public async Task<IActionResult> UpdateUserInfo(string userID, UpdateUserDTO DTO)
         {
@@ -255,13 +238,21 @@ namespace Backend.Controllers
             {
                 return BadRequest("Current user not found");
             }
-            currentUser.Email = DTO.Email;
-            currentUser.Username = DTO.Username;
+
+            if(DTO.Email != null)
+            {
+                currentUser.Email = DTO.Email;
+            }
+            if(DTO.Username != null)
+            {
+                currentUser.Username = DTO.Username;
+            }
 
             _context.SaveChanges();
             return Ok("Successfully saved info");
         }
 
+        [Authorize]
         [HttpPatch("updatePassword")]
         public async Task<IActionResult> UpdateUserPassword(string UID, UpdateUserPasswordDTO DTO)
         {
