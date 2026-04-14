@@ -22,10 +22,5 @@ RUN dotnet publish "./Backend.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p
 # Stage 4: Final image (kun runtime)
 FROM base AS final
 WORKDIR /app
-
-ENV ASPNETCORE_HTTP_PORTS=
-ENV ASPNETCORE_HTTPS_PORTS=
-ENV ASPNETCORE_URLS=http://0.0.0.0:$PORT
-
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "Backend.dll"]
