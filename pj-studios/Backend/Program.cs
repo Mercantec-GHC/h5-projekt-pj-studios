@@ -1,10 +1,15 @@
 using Backend.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Reflection;
 using System.Text;
+using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 var jwt = builder.Configuration.GetSection("Jwt");
+
+
+
 
 builder.Services
     .AddAuthentication("Bearer")
@@ -51,14 +56,20 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+} else
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+    app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseCors(FrontendCorsPolicy);
