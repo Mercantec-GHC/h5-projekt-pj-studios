@@ -5,8 +5,8 @@
 MKRIoTCarrier carrier;
 
 // ---------------- WIFI ----------------
-const char* ssid = "Familien.Fischer";
-const char* wifiPassword = "Norregade29";
+const char* ssid = "Wifinavn";
+const char* wifiPassword = "WifiPass";
 
 // ---------------- SERVER ----------------
 const char* serverAddress = "h5-projekt-pj-studios-1.onrender.com";
