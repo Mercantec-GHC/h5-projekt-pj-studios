@@ -5,10 +5,10 @@
 MKRIoTCarrier carrier;
 
 // ---------------- WIFI ----------------
-const char* ssid = "Familien.Fischer";
-const char* password = "Norregade29";
+const char* ssid = "Wifinavn";
+const char* wifiPassword = "WifiPass";
 
-// Server
+// ---------------- SERVER ----------------
 const char* serverAddress = "h5-projekt-pj-studios-1.onrender.com";
 int port = 443;
 
@@ -33,7 +33,7 @@ int moleTime = 1500;
 // ---------------- TOUCH ----------------
 touchButtons touches[5] = {TOUCH0, TOUCH1, TOUCH2, TOUCH3, TOUCH4};
 
-// ---------------- LED CONTROL ----------------
+// ---------------- LED ----------------
 void clearMoleLED() {
   for (int i = 0; i < 5; i++) {
     carrier.leds.setPixelColor(i, 0, 0, 0);
@@ -45,15 +45,16 @@ void showMoleLED(int index) {
   clearMoleLED();
 
   moleIndex = index;
-
-  // grøn mole
   carrier.leds.setPixelColor(moleIndex, 0, 150, 0);
   carrier.leds.show();
 
   lastSpawn = millis();
+
+  Serial.print("MOLE SPAWNED AT: ");
+  Serial.println(moleIndex);
 }
 
-// ---------------- DRAW UI ----------------
+// ---------------- UI ----------------
 void drawUI() {
   carrier.display.fillScreen(0);
 
@@ -66,7 +67,7 @@ void drawUI() {
   carrier.display.print(lives);
 }
 
-// ---------------- SPAWN MOLE ----------------
+// ---------------- MOLE ----------------
 void spawnMole() {
   drawUI();
 
@@ -74,19 +75,33 @@ void spawnMole() {
   showMoleLED(newIndex);
 }
 
-// ---------------- HIT CHECK ----------------
+// ---------------- TOUCH ----------------
 void checkTouch() {
+
   for (int i = 0; i < 5; i++) {
 
     if (carrier.Buttons.getTouch(touches[i])) {
 
+      Serial.print("TOUCH: ");
+      Serial.println(i);
+
+      Serial.print("MOLE: ");
+      Serial.println(moleIndex);
+
+      if (moleIndex == -1) return;
+
       if (i == moleIndex) {
+
+        Serial.println("HIT!");
+
         score++;
 
         clearMoleLED();
         spawnMole();
+      }
+      else {
+        Serial.println("MISS!");
 
-      } else {
         lives--;
 
         if (lives <= 0) {
@@ -101,12 +116,14 @@ void checkTouch() {
 
 // ---------------- GAME OVER ----------------
 void gameOver() {
+
+  Serial.println("GAME OVER TRIGGERED");
+
   gameRunning = false;
 
   clearMoleLED();
 
   carrier.display.fillScreen(0);
-
   carrier.display.setCursor(40, 50);
   carrier.display.print("Game Over");
 
@@ -119,6 +136,8 @@ void gameOver() {
 
 // ---------------- START GAME ----------------
 void startGame() {
+  Serial.println("GAME STARTED");
+
   score = 0;
   lives = 3;
   gameRunning = true;
@@ -139,8 +158,10 @@ void loop() {
     return;
   }
 
-  // miss timeout
   if (millis() - lastSpawn > moleTime) {
+
+    Serial.println("TIMEOUT - MISS");
+
     lives--;
 
     if (lives <= 0) {
@@ -171,48 +192,91 @@ void setup() {
 
 // ---------------- WIFI ----------------
 void connectWiFi() {
-  while (WiFi.begin(ssid, password) != WL_CONNECTED) {
+  Serial.println("Connecting WiFi...");
+
+  while (WiFi.begin(ssid, wifiPassword) != WL_CONNECTED) {
     delay(2000);
+    Serial.println("Retry WiFi...");
   }
+
+  Serial.println("WiFi CONNECTED!");
 }
 
 // ---------------- LOGIN ----------------
 void loginUser() {
 
-  String postData = "{\"email\":\"" + email + "\",\"password\":\"" + passwordUser + "\"}";
+  Serial.println("Logging in...");
+
+  String postData =
+    "{\"email\":\"" + email + "\",\"password\":\"" + passwordUser + "\"}";
 
   client.beginRequest();
   client.post("/api/User/login");
+
   client.sendHeader("Content-Type", "application/json");
   client.sendHeader("Content-Length", postData.length());
+
   client.beginBody();
   client.print(postData);
   client.endRequest();
 
+  int statusCode = client.responseStatusCode();
   String response = client.responseBody();
 
+  Serial.print("Login status: ");
+  Serial.println(statusCode);
+
+  Serial.println("Login response:");
+  Serial.println(response);
+
   int index = response.indexOf("\"token\":\"");
+
   if (index != -1) {
     int start = index + 9;
     int end = response.indexOf("\"", start);
+
     jwtToken = response.substring(start, end);
+
+    Serial.println("TOKEN OK:");
+    Serial.println(jwtToken);
+  }
+  else {
+    Serial.println("TOKEN NOT FOUND!");
   }
 }
 
 // ---------------- SEND SCORE ----------------
 void sendScore() {
-  if (jwtToken == "") return;
 
-  String postData = "{\"score\":" + String(score) + "}";
+  Serial.println("SENDSCORE CALLED");
+
+  if (jwtToken == "") {
+    Serial.println("NO TOKEN - STOP");
+    return;
+  }
+
+  String postData =
+    "{\"email\":\"" + email + "\",\"score\":" + String(score) + "}";
+
+  Serial.println("POST DATA:");
+  Serial.println(postData);
 
   client.beginRequest();
   client.post("/api/User/addscore");
 
   client.sendHeader("Content-Type", "application/json");
-  client.sendHeader("Authorization", "Bearer " + jwtToken);
   client.sendHeader("Content-Length", postData.length());
 
   client.beginBody();
   client.print(postData);
   client.endRequest();
+
+  int status = client.responseStatusCode();
+  String response = client.responseBody();
+
+  Serial.print("SCORE STATUS: ");
+  Serial.println(status);
+
+  Serial.println("SCORE RESPONSE:");
+  Serial.println(response);
 }

@@ -10,8 +10,6 @@ namespace Frontend.Services
         private readonly IJSRuntime _jsRuntime;
         public const string ApiBaseUrl = "https://h5-projekt-pj-studios-1.onrender.com";
         private const string TokenStorageKey = "authToken";
-        private const string UserEmailStorageKey = "authEmail";
-        private const string UsernameStorageKey = "authUsername";
 
         public AuthenticationService(HttpClient httpClient, IJSRuntime jsRuntime)
         {
@@ -33,20 +31,13 @@ namespace Frontend.Services
                 {
                     var content = await response.Content.ReadAsStringAsync();
                     var token = ExtractToken(content);
-                    var username = ExtractUsername(content);
 
-                    await _jsRuntime.InvokeVoidAsync("authStorage.set", UserEmailStorageKey, email);
-
-                    if (!string.IsNullOrWhiteSpace(username))
+                    if (string.IsNullOrWhiteSpace(token))
                     {
-                        await _jsRuntime.InvokeVoidAsync("authStorage.set", UsernameStorageKey, username);
+                        return false;
                     }
 
-                    if (!string.IsNullOrWhiteSpace(token))
-                    {
-                        await _jsRuntime.InvokeVoidAsync("authStorage.set", TokenStorageKey, token);
-                    }
-
+                    await _jsRuntime.InvokeVoidAsync("authStorage.set", TokenStorageKey, token);
                     return true;
                 }
 
@@ -86,8 +77,6 @@ namespace Frontend.Services
         public async Task LogoutAsync()
         {
             await _jsRuntime.InvokeVoidAsync("authStorage.remove", TokenStorageKey);
-            await _jsRuntime.InvokeVoidAsync("authStorage.remove", UserEmailStorageKey);
-            await _jsRuntime.InvokeVoidAsync("authStorage.remove", UsernameStorageKey);
 
             try
             {
@@ -104,16 +93,6 @@ namespace Frontend.Services
             return await _jsRuntime.InvokeAsync<string?>("authStorage.get", TokenStorageKey);
         }
 
-        public async Task<string?> GetStoredEmailAsync()
-        {
-            return await _jsRuntime.InvokeAsync<string?>("authStorage.get", UserEmailStorageKey);
-        }
-
-        public async Task<string?> GetStoredUsernameAsync()
-        {
-            return await _jsRuntime.InvokeAsync<string?>("authStorage.get", UsernameStorageKey);
-        }
-
         private static string? ExtractToken(string responseContent)
         {
             if (string.IsNullOrWhiteSpace(responseContent))
@@ -125,11 +104,18 @@ namespace Frontend.Services
             {
                 using var document = JsonDocument.Parse(responseContent);
 
-                var token = FindStringPropertyRecursive(document.RootElement, "token", "jwt", "jwtToken", "accessToken");
-
-                if (!string.IsNullOrWhiteSpace(token))
+                if (document.RootElement.ValueKind == JsonValueKind.Object)
                 {
-                    return token;
+                    var tokenPropertyNames = new[] { "token", "jwt", "jwtToken", "accessToken" };
+
+                    foreach (var propertyName in tokenPropertyNames)
+                    {
+                        if (document.RootElement.TryGetProperty(propertyName, out var tokenProperty) &&
+                            tokenProperty.ValueKind == JsonValueKind.String)
+                        {
+                            return tokenProperty.GetString();
+                        }
+                    }
                 }
 
                 if (document.RootElement.ValueKind == JsonValueKind.String)
@@ -143,65 +129,6 @@ namespace Frontend.Services
             }
 
             return responseContent.Trim().Trim('"');
-        }
-
-        private static string? ExtractUsername(string responseContent)
-        {
-            if (string.IsNullOrWhiteSpace(responseContent))
-            {
-                return null;
-            }
-
-            try
-            {
-                using var document = JsonDocument.Parse(responseContent);
-                return FindStringPropertyRecursive(document.RootElement, "username", "userName", "name");
-            }
-            catch (JsonException)
-            {
-                return null;
-            }
-        }
-
-        private static string? FindStringPropertyRecursive(JsonElement element, params string[] propertyNames)
-        {
-            if (element.ValueKind == JsonValueKind.Object)
-            {
-                foreach (var propertyName in propertyNames)
-                {
-                    if (element.TryGetProperty(propertyName, out var value) && value.ValueKind == JsonValueKind.String)
-                    {
-                        var text = value.GetString();
-                        if (!string.IsNullOrWhiteSpace(text))
-                        {
-                            return text;
-                        }
-                    }
-                }
-
-                foreach (var property in element.EnumerateObject())
-                {
-                    var found = FindStringPropertyRecursive(property.Value, propertyNames);
-                    if (!string.IsNullOrWhiteSpace(found))
-                    {
-                        return found;
-                    }
-                }
-            }
-
-            if (element.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var item in element.EnumerateArray())
-                {
-                    var found = FindStringPropertyRecursive(item, propertyNames);
-                    if (!string.IsNullOrWhiteSpace(found))
-                    {
-                        return found;
-                    }
-                }
-            }
-
-            return null;
         }
     }
 }
