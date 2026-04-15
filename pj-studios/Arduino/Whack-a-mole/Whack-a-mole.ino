@@ -265,7 +265,6 @@ void sendScore() {
   client.post("/api/User/addscore");
 
   client.sendHeader("Content-Type", "application/json");
-  client.sendHeader("Authorization", "Bearer " + jwtToken);
   client.sendHeader("Content-Length", postData.length());
 
   client.beginBody();
